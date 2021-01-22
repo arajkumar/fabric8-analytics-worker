@@ -6,6 +6,7 @@ COVERAGE_THRESHOLD=50
 set -e
 DIR=$(dirname "${BASH_SOURCE[0]}")
 
+cd /f8a_worker
 echo "*****************************************"
 echo "*** Cyclomatic complexity measurement ***"
 echo "*****************************************"

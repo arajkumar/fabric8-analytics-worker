@@ -77,15 +77,16 @@ DB_CONTAINER_IP=$(docker inspect --format "{{.NetworkSettings.Networks.${DOCKER_
 
 # TODO: this is duplicating code with server's runtest, we should refactor
 echo "Waiting for postgres to fully initialize"
-set +x
 for i in {1..10}; do
-  retcode=$(curl http://${DB_CONTAINER_IP}:5432 &>/dev/null || echo $?)
-  if test "$retcode" == "52"; then
+  set +e
+  docker exec -it "${TESTDB_CONTAINER_NAME}" bash -c pg_isready
+  if [[ "$?" == "0" ]]; then
     break
   fi;
-  sleep 1
+  set -e
+  sleep 2
 done;
-set -x
+echo "Postgres is ready.."
 
 docker run -d \
     --env-file tests/minio.env \
@@ -96,8 +97,8 @@ S3_CONTAINER_IP=$(docker inspect --format "{{.NetworkSettings.Networks.${DOCKER_
 S3_ENDPOINT_URL="http://${S3_CONTAINER_IP}:33000"
 
 echo "Starting test suite"
-docker run -t \
-  -v "${here}:/f8a_worker:ro,Z" \
+docker run -it \
+  -v "${here}:/f8a_worker:rw,Z" \
   --network "${DOCKER_NETWORK}" \
   -u 9007 \
   -e PGBOUNCER_SERVICE_HOST="${TESTDB_CONTAINER_NAME}" \
@@ -108,7 +109,7 @@ docker run -t \
   -e SENTRY_DSN='' \
   --env-file tests/postgres.env \
   --name="${CONTAINER_NAME}" \
-  ${TEST_IMAGE_NAME} /f8a_worker/hack/exec_tests.sh $@ /f8a_worker/tests/
+  ${TEST_IMAGE_NAME} /f8a_worker/hack/exec_tests.sh $@ /f8a_worker/tests/workers/test_mercator.py::TestMercator::test_execute_npm
 
 popd > /dev/null
 
